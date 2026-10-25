@@ -27,8 +27,8 @@ describe('calculateAnniversary (당일 1일째 기준)', () => {
   });
 });
 
-describe('calculateResolution (결심 진행률 % 계산)', () => {
-  it('전체 100일 기간 중 50일이 경과하면 50%를 반환한다', () => {
+describe('calculateResolution (결심 진행률 & 성공/실패 체크 성공율 % 계산)', () => {
+  it('전체 100일 기간 중 50일이 경과하면 50%를 반환한다 (checkLogs 미지정 시)', () => {
     const today = new Date(2026, 9, 25); // 2026-10-25
     // 2026-10-05 ~ 2026-11-14 (40일 기간 중 20일 경과 = 50%)
     const res = calculateResolution('2026-10-05', '2026-11-14', today);
@@ -50,5 +50,22 @@ describe('calculateResolution (결심 진행률 % 계산)', () => {
     const res = calculateResolution('2026-09-01', '2026-10-20', today);
     expect(res.percent).toBe(100);
     expect(res.status).toBe('completed');
+  });
+
+  it('checkLogs가 주어지면 성공일자 / 전체기간 * 100으로 성공율(%)을 계산한다', () => {
+    const today = new Date(2026, 9, 25);
+    const logs = {
+      '2026-10-25': 'success' as const,
+      '2026-10-26': 'success' as const,
+      '2026-10-27': 'fail' as const,
+      '2026-10-28': 'success' as const,
+      '2026-09-01': 'fail' as const, // 기간 외 날짜는 무시됨
+    };
+    const res = calculateResolution('2026-10-25', '2026-11-24', today, logs);
+    expect(res.totalDays).toBe(31);
+    expect(res.successDays).toBe(3);
+    expect(res.failDays).toBe(1);
+    expect(res.checkedDays).toBe(4);
+    expect(res.percent).toBe(Math.round((3 / 31) * 100)); // 10%
   });
 });
