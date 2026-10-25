@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', system-ui, -apple-system, sans-serif;
+}
+
+/* ============================================================================
+   고시인성 루트 폰트 스케일링 (스마트폰 가독성 극대화)
+   - normal : 16.5px
+   - large  : 18px (기본값 - 넉넉하고 시원한 글씨 크기)
+   - xlarge : 20px (초특대 고시인성 모드)
+   ============================================================================ */
+html {
+  font-size: 18px;
+  line-height: 1.6;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-font-scale='normal'] {
+  font-size: 16.5px;
+}
+
+html[data-font-scale='large'] {
+  font-size: 18px;
+}
+
+html[data-font-scale='xlarge'] {
+  font-size: 20px;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: clip;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.015em;
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+#root {
+  min-height: 100dvh;
+}
