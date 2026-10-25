@@ -1,4 +1,4 @@
-import type { Provider, Session, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import {
   createContext,
   useCallback,
@@ -12,7 +12,6 @@ import {
   MAX_AVATAR_BYTES,
 } from '../lib/imageCompression';
 import {
-  checkGoogleProviderEnabled,
   clearUserLocalDdayData,
   deleteAllUserDdayDataFromSupabase,
   INITIAL_URL_AUTH_ERROR,
@@ -35,7 +34,6 @@ export interface AuthResult {
   ok: boolean;
   error?: string;
   needsEmailConfirmation?: boolean;
-  providerNotEnabled?: boolean;
 }
 
 interface AuthContextValue {
@@ -45,7 +43,6 @@ interface AuthContextValue {
   loading: boolean;
   signUpWithEmail: (email: string, password: string, fullName?: string) => Promise<AuthResult>;
   signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
-  signInWithOAuth: (provider?: 'google') => Promise<AuthResult>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<AuthResult>;
   refreshProfile: () => Promise<void>;
@@ -233,38 +230,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (error) {
-        return { ok: false, error: error.message };
-      }
-      return { ok: true };
-    },
-    [],
-  );
-
-  const signInWithOAuth = useCallback(
-    async (provider: Extract<Provider, 'google'> = 'google'): Promise<AuthResult> => {
-      if (provider === 'google') {
-        const enabled = await checkGoogleProviderEnabled();
-        if (!enabled) {
-          return {
-            ok: false,
-            providerNotEnabled: true,
-            error: 'Unsupported provider: provider is not enabled',
-          };
-        }
-      }
-
-      const redirectTo = `${window.location.origin}${window.location.pathname}`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account',
-          },
-        },
-      });
       if (error) {
         return { ok: false, error: error.message };
       }
@@ -523,7 +488,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signUpWithEmail,
         signInWithEmail,
-        signInWithOAuth,
         signOut,
         deleteAccount,
         refreshProfile,
