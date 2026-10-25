@@ -576,18 +576,10 @@ export default function App() {
               </div>
             </section>
 
-            {/* 비로그인 상태일 때 dodo_project 통합 로그인/회원가입 카드 표시 */}
+            {/* 비로그인 상태일 때 통합 로그인/회원가입 카드 표시 */}
             {!user && (
               <section className="rounded-3xl border-2 border-amber-300/90 bg-gradient-to-br from-amber-50/70 via-white to-blue-50/40 p-4 sm:p-5 shadow-xs">
-                <div className="mb-3">
-                  <h2 className="text-base sm:text-lg font-black text-slate-900">
-                    로그인하고 나만의 기념일·결심을 관리하세요
-                  </h2>
-                  <p className="mt-0.5 text-xs font-bold text-slate-600">
-                    dodo_project와 동일한 회원 계정으로 로그인하면 내 계정 데이터가 안전하게 동기화됩니다.
-                  </p>
-                </div>
-                <AuthFormPanel />
+                <AuthFormPanel headerTitle="로그인하고 나만의 기념일·결심을 관리하세요" />
               </section>
             )}
 

@@ -462,7 +462,13 @@ export function PasswordRecoveryModal() {
 /**
  * dodo_project 통합 로그인 / 회원가입 폼 패널 (인라인 또는 모달 내부 공용)
  */
-export function AuthFormPanel({ onSuccess }: { onSuccess?: () => void }) {
+export function AuthFormPanel({
+  onSuccess,
+  headerTitle,
+}: {
+  onSuccess?: () => void;
+  headerTitle?: string;
+}) {
   const { signInWithEmail, signUpWithEmail, signInWithOAuth } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -543,17 +549,20 @@ export function AuthFormPanel({ onSuccess }: { onSuccess?: () => void }) {
   };
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-1 rounded-xl bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-          <Sparkles className="h-3.5 w-3.5" />
-          dodo_project 통합 회원 계정
-        </div>
+        {headerTitle ? (
+          <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight break-keep min-w-0">
+            {headerTitle}
+          </h2>
+        ) : (
+          <span className="text-xs font-extrabold text-slate-500">소셜 계정으로 빠른 시작</span>
+        )}
         <button
           type="button"
           disabled={isBusy}
           onClick={() => void handleOAuth()}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-800 shadow-2xs hover:bg-slate-50 cursor-pointer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-extrabold text-slate-800 shadow-2xs hover:bg-slate-50 cursor-pointer"
         >
           {oauthLoading === 'google' ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -832,9 +841,6 @@ export function MemberProfileSection({
             <h2 className="mt-1 text-base sm:text-lg font-black text-slate-900">
               로그인하고 내 기념일·결심을 관리하세요
             </h2>
-            <p className="mt-0.5 text-xs font-bold text-slate-600">
-              dodo_project와 동일한 회원 계정으로 내 데이터를 안전하게 불러옵니다.
-            </p>
           </div>
         </div>
         <button
