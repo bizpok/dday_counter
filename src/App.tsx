@@ -84,7 +84,7 @@ const TABS: {
   {
     id: 'settings',
     label: '설정',
-    subtitle: '회원 프로필 · 글씨 크기 및 DB 연동 관리',
+    subtitle: '회원 프로필 및 DB 연동 관리',
     icon: Settings,
   },
 ];
@@ -133,11 +133,7 @@ export default function App() {
   const [showAddResModal, setShowAddResModal] = useState<boolean>(false);
   const [resTitle, setResTitle] = useState<string>('');
   const [resStartDate, setResStartDate] = useState<string>(() => formatDateInput(new Date()));
-  const [resEndDate, setResEndDate] = useState<string>(() => {
-    const now = new Date();
-    const after30 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
-    return formatDateInput(after30);
-  });
+  const [resMotivation, setResMotivation] = useState<string>('');
   const [submittingRes, setSubmittingRes] = useState<boolean>(false);
   const [resFormError, setResFormError] = useState<string>('');
 
@@ -145,7 +141,7 @@ export default function App() {
   const [editingResId, setEditingResId] = useState<number | null>(null);
   const [editResTitle, setEditResTitle] = useState<string>('');
   const [editResStart, setEditResStart] = useState<string>('');
-  const [editResEnd, setEditResEnd] = useState<string>('');
+  const [editResMotivation, setEditResMotivation] = useState<string>('');
 
   // 결심 '진행' 캘린더 모달 상태
   const [calendarResId, setCalendarResId] = useState<number | null>(null);
@@ -220,16 +216,12 @@ export default function App() {
     e.preventDefault();
     setResFormError('');
     const trimmed = resTitle.trim();
-    if (!trimmed || !resStartDate || !resEndDate) return;
-
-    if (parseLocalDate(resEndDate).getTime() < parseLocalDate(resStartDate).getTime()) {
-      setResFormError('결심 완료일자는 시작일자보다 같거나 이후 날짜여야 합니다.');
-      return;
-    }
+    if (!trimmed || !resStartDate) return;
 
     setSubmittingRes(true);
-    await createResolution(trimmed, resStartDate, resEndDate, user?.id ?? null);
+    await createResolution(trimmed, resStartDate, resMotivation, user?.id ?? null);
     setResTitle('');
+    setResMotivation('');
     setShowAddResModal(false);
     await loadData(user?.id ?? null);
     setSubmittingRes(false);
@@ -237,12 +229,8 @@ export default function App() {
 
   const handleSaveEditResolution = async (id: number) => {
     const trimmed = editResTitle.trim();
-    if (!trimmed || !editResStart || !editResEnd) return;
-    if (parseLocalDate(editResEnd).getTime() < parseLocalDate(editResStart).getTime()) {
-      alert('완료일자는 시작일자보다 같거나 이후여야 합니다.');
-      return;
-    }
-    await updateResolution(id, trimmed, editResStart, editResEnd, user?.id ?? null);
+    if (!trimmed || !editResStart) return;
+    await updateResolution(id, trimmed, editResStart, editResMotivation, user?.id ?? null);
     setEditingResId(null);
     await loadData(user?.id ?? null);
   };
@@ -258,11 +246,8 @@ export default function App() {
   // '진행' 아이콘 클릭 시 해당 결심의 캘린더 열기
   const handleOpenProgressCalendar = (item: ResolutionItem) => {
     const currentTodayStr = formatDateInput(today);
-    const initialDateStr = isDateInRange(currentTodayStr, item.start_date, item.end_date)
-      ? currentTodayStr
-      : currentTodayStr > item.end_date
-      ? item.end_date
-      : item.start_date;
+    const initialDateStr =
+      currentTodayStr >= item.start_date ? currentTodayStr : item.start_date;
     const initDate = parseLocalDate(initialDateStr);
     setCalYear(initDate.getFullYear());
     setCalMonth(initDate.getMonth());
@@ -281,7 +266,7 @@ export default function App() {
     dateStr: string,
     status: CheckStatus | null
   ) => {
-    if (!isDateInRange(dateStr, item.start_date, item.end_date)) return;
+    if (dateStr < item.start_date) return;
 
     const currentTodayStr = formatDateInput(today);
     if (dateStr > currentTodayStr) {
@@ -308,7 +293,7 @@ export default function App() {
 
   // 캘린더 날짜 셀 클릭 시: 오늘 이후 날짜는 선택 차단 및 안내 메시지 출력
   const handleCalendarCellClick = (item: ResolutionItem, dateStr: string) => {
-    if (!isDateInRange(dateStr, item.start_date, item.end_date)) return;
+    if (dateStr < item.start_date) return;
 
     const currentTodayStr = formatDateInput(today);
     if (dateStr > currentTodayStr) {
@@ -332,10 +317,10 @@ export default function App() {
   // 실시간 미리보기 계산
   const previewAnniv = annivDate ? calculateAnniversary(annivDate, today) : null;
 
-  // 결심별 성공율 계산 (check_logs 기반: 성공일자 / 기간 * 100)
+  // 결심별 성공율 계산 (시작일 ~ 오늘까지의 기간 기준: 성공일자 / 기간 * 100)
   const resolutionsWithCalc = resolutions.map((item) => ({
     item,
-    calc: calculateResolution(item.start_date, item.end_date, today, item.check_logs || {}),
+    calc: calculateResolution(item.start_date, null, today, item.check_logs || {}),
   }));
 
   const avgResolutionPercent =
@@ -361,43 +346,43 @@ export default function App() {
   const displayName =
     profile?.full_name || profile?.username || (user?.email ? user.email.split('@')[0] : null);
 
-  // 기념일 우측 배지 렌더링 (숫자와 '일째'가 절대 두 줄로 쪼개지지 않도록 비율 분리)
+  // 기념일 우측 배지 렌더링 (숫자와 '일째'가 절대 두 줄로 쪼개지지 않도록 비율 분리, -10% 축소)
   const renderAnniversaryBadge = (calc: AnniversaryCalculation) => {
     if (calc.isFuture) {
       return (
-        <span className="shrink-0 whitespace-nowrap font-black tracking-tight tabular-nums text-blue-700 text-2xl sm:text-3xl leading-none">
+        <span className="shrink-0 whitespace-nowrap font-black tracking-tight tabular-nums text-blue-700 text-[1.35rem] sm:text-[1.6875rem] leading-none">
           {calc.badgeText}
         </span>
       );
     }
     return (
       <span className="inline-flex shrink-0 items-baseline whitespace-nowrap text-blue-700 leading-none">
-        <span className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums">
+        <span className="text-[1.35rem] sm:text-[1.6875rem] font-black tracking-tight tabular-nums">
           {calc.dayCount.toLocaleString()}
         </span>
-        <span className="ml-0.5 text-sm sm:text-base font-extrabold">일째</span>
+        <span className="ml-0.5 text-[0.7875rem] sm:text-[0.9rem] font-extrabold">일째</span>
       </span>
     );
   };
 
-  // 기념일 좌측 보조 설명 렌더링 ('(당일 1일째 기준)' 제거, 깔끔한 1줄 표시)
+  // 기념일 좌측 보조 설명 렌더링 (+10% 확대, 깔끔한 1줄 표시)
   const renderAnniversaryDetail = (calc: AnniversaryCalculation) => {
     if (calc.isFuture) {
       return (
-        <span className="text-xs sm:text-sm font-extrabold text-blue-900 break-keep min-w-0">
+        <span className="text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-blue-900 break-keep min-w-0">
           기념일까지 {Math.abs(calc.elapsedDays).toLocaleString()}일 남음
         </span>
       );
     }
     if (calc.elapsedDays === 0) {
       return (
-        <span className="text-xs sm:text-sm font-extrabold text-blue-900 break-keep min-w-0">
+        <span className="text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-blue-900 break-keep min-w-0">
           오늘이 기념일 당일입니다 🎉
         </span>
       );
     }
     return (
-      <span className="text-xs sm:text-sm font-extrabold text-blue-900 break-keep min-w-0">
+      <span className="text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-blue-900 break-keep min-w-0">
         기념일로부터 {calc.elapsedDays.toLocaleString()}일 지남
       </span>
     );
@@ -692,15 +677,22 @@ export default function App() {
                       onClick={() => handleOpenProgressCalendar(item)}
                       className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-emerald-400 cursor-pointer"
                     >
-                      <div className="flex items-center justify-between gap-2.5">
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 break-keep min-w-0">
-                          {item.title}
-                        </h3>
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="min-w-0">
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 break-keep min-w-0">
+                            {item.title}
+                          </h3>
+                          {item.motivation && (
+                            <p className="mt-0.5 text-[0.825rem] sm:text-[0.9625rem] font-bold text-emerald-700 break-keep">
+                              {item.motivation}
+                            </p>
+                          )}
+                        </div>
                         <span className="inline-flex shrink-0 items-baseline whitespace-nowrap text-emerald-700 leading-none">
-                          <span className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums">
+                          <span className="text-[1.35rem] sm:text-[1.6875rem] font-black tracking-tight tabular-nums">
                             {calc.percent}
                           </span>
-                          <span className="ml-0.5 text-sm sm:text-base font-extrabold">%</span>
+                          <span className="ml-0.5 text-[0.7875rem] sm:text-[0.9rem] font-extrabold">%</span>
                         </span>
                       </div>
 
@@ -711,10 +703,10 @@ export default function App() {
                             style={{ width: `${calc.percent}%` }}
                           />
                         </div>
-                        <div className="flex flex-col gap-0.5 pt-0.5 text-xs font-bold text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-0.5 pt-0.5 text-[0.825rem] sm:text-[0.9625rem] font-bold text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-emerald-800 font-extrabold">{calc.detailText}</span>
-                          <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                            {formatKoreanDate(item.start_date)} ~ {formatKoreanDate(item.end_date)}
+                          <span className="text-xs text-slate-500 whitespace-nowrap">
+                            시작일: {formatKoreanDate(item.start_date)}
                           </span>
                         </div>
                       </div>
@@ -844,7 +836,7 @@ export default function App() {
                               <h3 className="text-base sm:text-lg font-black leading-snug text-slate-900 break-keep">
                                 {item.title}
                               </h3>
-                              <span className="mt-0.5 block text-xs font-bold text-slate-500">
+                              <span className="mt-0.5 block text-[0.825rem] sm:text-[0.9625rem] font-bold text-slate-500">
                                 기념일: {formatKoreanDate(item.target_date)}
                               </span>
                             </div>
@@ -977,29 +969,28 @@ export default function App() {
                             onChange={(e) => setEditResTitle(e.target.value)}
                             className="min-h-[44px] w-full rounded-xl border-2 border-emerald-500 px-3.5 py-2 text-sm sm:text-base font-bold text-slate-900"
                           />
-                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                            <div>
-                              <label className="mb-1 block text-xs font-extrabold text-slate-700">
-                                시작일자
-                              </label>
-                              <input
-                                type="date"
-                                value={editResStart}
-                                onChange={(e) => setEditResStart(e.target.value)}
-                                className="min-h-[44px] w-full rounded-xl border-2 border-emerald-500 px-3.5 py-2 text-sm sm:text-base font-bold text-slate-900"
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-extrabold text-slate-700">
-                                완료일자
-                              </label>
-                              <input
-                                type="date"
-                                value={editResEnd}
-                                onChange={(e) => setEditResEnd(e.target.value)}
-                                className="min-h-[44px] w-full rounded-xl border-2 border-emerald-500 px-3.5 py-2 text-sm sm:text-base font-bold text-slate-900"
-                              />
-                            </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-extrabold text-slate-700">
+                              결심 시작일자
+                            </label>
+                            <input
+                              type="date"
+                              value={editResStart}
+                              onChange={(e) => setEditResStart(e.target.value)}
+                              className="min-h-[44px] w-full rounded-xl border-2 border-emerald-500 px-3.5 py-2 text-sm sm:text-base font-bold text-slate-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-extrabold text-slate-700">
+                              결심동기부여
+                            </label>
+                            <input
+                              type="text"
+                              value={editResMotivation}
+                              onChange={(e) => setEditResMotivation(e.target.value)}
+                              placeholder="예: 건강한 몸과 맑은 정신을 위해 꼭 실천하자!"
+                              className="min-h-[44px] w-full rounded-xl border-2 border-emerald-500 px-3.5 py-2 text-sm sm:text-base font-bold text-slate-900"
+                            />
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -1043,7 +1034,7 @@ export default function App() {
                                   setEditingResId(item.id);
                                   setEditResTitle(item.title);
                                   setEditResStart(item.start_date);
-                                  setEditResEnd(item.end_date);
+                                  setEditResMotivation(item.motivation || '');
                                 }}
                                 aria-label="결심 수정"
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer"
@@ -1061,24 +1052,30 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* 중단: 시작일/완료일 및 성공율(%) 표시 박스 */}
+                          {/* 중단: 시작일/결심동기부여 및 성공율(%) 표시 박스 */}
                           <div
                             onClick={() => handleOpenProgressCalendar(item)}
                             className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50/90 px-3.5 py-3 border border-emerald-100 cursor-pointer transition hover:border-emerald-300"
                           >
-                            <div className="flex flex-col gap-0.5 text-xs font-bold text-slate-700 min-w-0">
-                              <div className="truncate">시작일: {formatKoreanDate(item.start_date)}</div>
-                              <div className="truncate">완료일: {formatKoreanDate(item.end_date)}</div>
+                            <div className="flex flex-col gap-0.5 text-[0.825rem] sm:text-[0.9625rem] font-bold text-slate-700 min-w-0">
+                              <div className="truncate">
+                                시작일: {formatKoreanDate(item.start_date)}
+                              </div>
+                              {item.motivation && (
+                                <div className="text-emerald-800 font-extrabold break-keep">
+                                  동기부여: {item.motivation}
+                                </div>
+                              )}
                             </div>
                             <div className="flex flex-col items-end shrink-0">
-                              <span className="text-[10px] font-extrabold text-emerald-700/80 mb-0.5">
+                              <span className="text-[11px] font-extrabold text-emerald-700/80 mb-0.5">
                                 성공율
                               </span>
                               <span className="inline-flex items-baseline whitespace-nowrap text-emerald-700 leading-none">
-                                <span className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums">
+                                <span className="text-[1.35rem] sm:text-[1.6875rem] font-black tracking-tight tabular-nums">
                                   {calc.percent}
                                 </span>
-                                <span className="ml-0.5 text-sm sm:text-base font-extrabold">%</span>
+                                <span className="ml-0.5 text-[0.7875rem] sm:text-[0.9rem] font-extrabold">%</span>
                               </span>
                             </div>
                           </div>
@@ -1091,7 +1088,7 @@ export default function App() {
                                 style={{ width: `${calc.percent}%` }}
                               />
                             </div>
-                            <div className="flex items-center justify-between gap-2 text-xs font-extrabold text-slate-600">
+                            <div className="flex items-center justify-between gap-2 text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-slate-600">
                               <span className="truncate">{calc.detailText}</span>
                               <span className="shrink-0 text-emerald-700 tabular-nums">
                                 성공율 {calc.percent}%
@@ -1109,7 +1106,7 @@ export default function App() {
         )}
 
         {/* ===================================================================
-            탭 4: 설정 (dodo_project 공유 회원관리 · 글씨 크기 · Supabase 연동 상태)
+            탭 4: 설정 (회원관리 · 데이터베이스 연동 상태)
             =================================================================== */}
         {activeTab === 'settings' && (
           <div className="flex flex-col gap-4">
@@ -1120,50 +1117,7 @@ export default function App() {
               onOpenAuthModal={() => setShowAuthModal(true)}
             />
 
-            {/* 1. 글씨 크기 시인성 조절 카드 */}
-            <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <Type className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-slate-900">
-                    화면 글씨 크기 (시인성 설정)
-                  </h2>
-                  <p className="text-xs font-bold text-slate-500">
-                    스마트폰 화면 비율에 맞는 글씨 크기를 선택하세요
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2.5">
-                {FONT_SCALE_OPTIONS.map((opt) => {
-                  const isActive = fontScale === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setFontScale(opt.id)}
-                      className={`flex items-center justify-between rounded-xl border-2 p-3.5 text-left transition cursor-pointer ${
-                        isActive
-                          ? 'border-blue-600 bg-blue-50/80'
-                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div>
-                        <p className="text-sm sm:text-base font-black text-slate-900">{opt.label}</p>
-                        <p className="mt-0.5 text-xs font-bold text-slate-600">{opt.desc}</p>
-                      </div>
-                      {isActive && (
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-600" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* 2. Supabase 클라우드 연동 정보 카드 */}
+            {/* 1. 데이터베이스 연동 정보 카드 */}
             <section className="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -1361,34 +1315,32 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="modal-res-start" className="text-xs sm:text-sm font-extrabold text-slate-700">
-                    결심 시작일자
-                  </label>
-                  <input
-                    id="modal-res-start"
-                    type="date"
-                    required
-                    value={resStartDate}
-                    onChange={(e) => setResStartDate(e.target.value)}
-                    className="min-h-[46px] w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-900 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  />
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="modal-res-start" className="text-xs sm:text-sm font-extrabold text-slate-700">
+                  결심 시작일자
+                </label>
+                <input
+                  id="modal-res-start"
+                  type="date"
+                  required
+                  value={resStartDate}
+                  onChange={(e) => setResStartDate(e.target.value)}
+                  className="min-h-[46px] w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-900 outline-none transition focus:border-emerald-600 focus:bg-white"
+                />
+              </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="modal-res-end" className="text-xs sm:text-sm font-extrabold text-slate-700">
-                    결심 완료일자
-                  </label>
-                  <input
-                    id="modal-res-end"
-                    type="date"
-                    required
-                    value={resEndDate}
-                    onChange={(e) => setResEndDate(e.target.value)}
-                    className="min-h-[46px] w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-900 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  />
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="modal-res-motivation" className="text-xs sm:text-sm font-extrabold text-slate-700">
+                  결심동기부여
+                </label>
+                <input
+                  id="modal-res-motivation"
+                  type="text"
+                  value={resMotivation}
+                  onChange={(e) => setResMotivation(e.target.value)}
+                  placeholder="예: 건강한 몸과 맑은 정신을 위해 꼭 실천하자!"
+                  className="min-h-[46px] w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-900 outline-none transition focus:border-emerald-600 focus:bg-white"
+                />
               </div>
 
               {resFormError && (
@@ -1440,11 +1392,15 @@ export default function App() {
                 <h3 className="mt-1 text-base sm:text-lg font-black text-slate-900 break-keep">
                   {activeCalendarResolution.item.title}
                 </h3>
-                <p className="text-xs font-bold text-slate-500">
-                  {formatKoreanDate(activeCalendarResolution.item.start_date)} ~{' '}
-                  {formatKoreanDate(activeCalendarResolution.item.end_date)} (총{' '}
-                  {activeCalendarResolution.calc.totalDays}일)
+                <p className="text-[0.825rem] sm:text-[0.9625rem] font-bold text-slate-500">
+                  시작일: {formatKoreanDate(activeCalendarResolution.item.start_date)} (진행{' '}
+                  {activeCalendarResolution.calc.totalDays}일차)
                 </p>
+                {activeCalendarResolution.item.motivation && (
+                  <p className="mt-0.5 text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-emerald-700 break-keep">
+                    동기부여: {activeCalendarResolution.item.motivation}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -1460,17 +1416,17 @@ export default function App() {
             <div className="mt-3 rounded-2xl bg-emerald-50/90 p-3.5 border border-emerald-100">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs font-extrabold text-emerald-900">현재 성공율</span>
-                  <p className="text-[11px] font-bold text-emerald-700">
-                    전체 {activeCalendarResolution.calc.totalDays}일 기간 중 성공{' '}
+                  <span className="text-[0.825rem] sm:text-[0.9625rem] font-extrabold text-emerald-900">현재 성공율</span>
+                  <p className="text-xs font-bold text-emerald-700">
+                    진행 {activeCalendarResolution.calc.totalDays}일 중 성공{' '}
                     {activeCalendarResolution.calc.successDays}일
                   </p>
                 </div>
                 <span className="inline-flex items-baseline whitespace-nowrap text-emerald-700 leading-none">
-                  <span className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums">
+                  <span className="text-[1.35rem] sm:text-[1.6875rem] font-black tracking-tight tabular-nums">
                     {activeCalendarResolution.calc.percent}
                   </span>
-                  <span className="ml-0.5 text-sm sm:text-base font-extrabold">%</span>
+                  <span className="ml-0.5 text-[0.7875rem] sm:text-[0.9rem] font-extrabold">%</span>
                 </span>
               </div>
 
@@ -1548,11 +1504,7 @@ export default function App() {
                 }
 
                 const dayNum = Number(dateStr.split('-')[2]);
-                const inPeriod = isDateInRange(
-                  dateStr,
-                  activeCalendarResolution.item.start_date,
-                  activeCalendarResolution.item.end_date
-                );
+                const inPeriod = dateStr >= activeCalendarResolution.item.start_date;
                 const status = activeCalendarResolution.item.check_logs?.[dateStr];
                 const isSelected = selectedCalDate === dateStr;
                 const isToday = dateStr === todayStr;
@@ -1629,11 +1581,7 @@ export default function App() {
                 <p className="text-center text-xs font-extrabold text-amber-700 py-1">
                   오늘 날짜 이후는 선택할 수 없습니다. 오늘까지의 진행 내역만 체크해 주세요.
                 </p>
-              ) : isDateInRange(
-                selectedCalDate,
-                activeCalendarResolution.item.start_date,
-                activeCalendarResolution.item.end_date
-              ) ? (
+              ) : selectedCalDate >= activeCalendarResolution.item.start_date ? (
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -1685,8 +1633,7 @@ export default function App() {
                 </div>
               ) : (
                 <p className="text-center text-xs font-bold text-amber-700 py-1">
-                  결심 기간({formatKoreanDate(activeCalendarResolution.item.start_date)} ~{' '}
-                  {formatKoreanDate(activeCalendarResolution.item.end_date)}) 내의 날짜를 선택해 주세요.
+                  결심 시작일({formatKoreanDate(activeCalendarResolution.item.start_date)}) 이후 날짜를 선택해 주세요.
                 </p>
               )}
             </div>

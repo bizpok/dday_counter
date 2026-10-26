@@ -34,13 +34,20 @@ CREATE TABLE IF NOT EXISTS public.dday_resolutions (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
   title TEXT NOT NULL,
   start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
+  end_date DATE DEFAULT CURRENT_DATE,
+  motivation TEXT NOT NULL DEFAULT '',
   check_logs JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.dday_resolutions
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid();
+
+ALTER TABLE public.dday_resolutions
+  ADD COLUMN IF NOT EXISTS motivation TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE public.dday_resolutions
+  ALTER COLUMN end_date DROP NOT NULL;
 
 ALTER TABLE public.dday_resolutions
   ADD COLUMN IF NOT EXISTS check_logs JSONB NOT NULL DEFAULT '{}'::jsonb;

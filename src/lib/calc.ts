@@ -128,13 +128,31 @@ export interface ResolutionCalculation {
  */
 export function calculateResolution(
   startDateStr: string,
-  endDateStr: string,
+  endDateStr?: string | null,
   referenceDate: Date = new Date(),
   checkLogs?: Record<string, 'success' | 'fail'>
 ): ResolutionCalculation {
   const today = toLocalMidnight(referenceDate);
+  const effectiveEndDateStr = endDateStr || formatDateInput(today);
   const start = parseLocalDate(startDateStr);
-  const end = parseLocalDate(endDateStr);
+  const end = parseLocalDate(effectiveEndDateStr);
+
+  if (!endDateStr && today.getTime() < start.getTime()) {
+    const waitDays = Math.ceil((start.getTime() - today.getTime()) / DAY_MS);
+    return {
+      percent: 0,
+      totalDays: 0,
+      elapsedDays: 0,
+      remainingDays: waitDays,
+      successDays: 0,
+      failDays: 0,
+      checkedDays: 0,
+      uncheckedDays: 0,
+      status: 'upcoming',
+      statusLabel: '진행 예정',
+      detailText: `시작일까지 ${waitDays.toLocaleString()}일 남음`,
+    };
+  }
 
   const diffDays = Math.max(0, Math.floor((end.getTime() - start.getTime()) / DAY_MS));
   const inclusivePeriodDays = diffDays + 1;
@@ -147,7 +165,7 @@ export function calculateResolution(
     let failDays = 0;
 
     for (const [dateKey, status] of Object.entries(checkLogs)) {
-      if (isDateInRange(dateKey, startDateStr, endDateStr)) {
+      if (isDateInRange(dateKey, startDateStr, effectiveEndDateStr)) {
         if (status === 'success') successDays += 1;
         else if (status === 'fail') failDays += 1;
       }
@@ -163,7 +181,7 @@ export function calculateResolution(
     const status: 'upcoming' | 'in_progress' | 'completed' =
       today.getTime() < start.getTime()
         ? 'upcoming'
-        : today.getTime() > end.getTime() || checkedDays >= inclusivePeriodDays
+        : endDateStr && (today.getTime() > end.getTime() || checkedDays >= inclusivePeriodDays)
         ? 'completed'
         : 'in_progress';
 
@@ -172,8 +190,8 @@ export function calculateResolution(
 
     const detailText =
       checkedDays === 0
-        ? `총 ${inclusivePeriodDays.toLocaleString()}일 과정 · '진행'을 눌러 성공/실패를 체크하세요`
-        : `성공 ${successDays}일 · 실패 ${failDays}일 (총 ${inclusivePeriodDays}일 중 ${checkedDays}일 체크)`;
+        ? `진행 ${inclusivePeriodDays.toLocaleString()}일차 · '진행'을 눌러 성공/실패를 체크하세요`
+        : `성공 ${successDays}일 · 실패 ${failDays}일 (진행 ${inclusivePeriodDays}일 중 ${checkedDays}일 체크)`;
 
     return {
       percent,

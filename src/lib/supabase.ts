@@ -123,7 +123,8 @@ export interface ResolutionItem {
   user_id?: string;
   title: string;
   start_date: string; // YYYY-MM-DD
-  end_date: string;   // YYYY-MM-DD
+  end_date?: string | null; // 레거시 호환용
+  motivation?: string;
   check_logs?: CheckLogs;
   created_at?: string;
 }
@@ -317,19 +318,30 @@ export async function deleteAnniversary(id: number, userId?: string | null): Pro
 export async function createResolution(
   title: string,
   start_date: string,
-  end_date: string,
+  motivation: string,
   userId?: string | null
 ): Promise<{ item: ResolutionItem; synced: boolean }> {
+  const trimmedMotivation = motivation.trim();
   if (userId) {
     const { data, error } = await supabase
       .from('dday_resolutions')
-      .insert([{ user_id: userId, title, start_date, end_date, check_logs: {} }])
+      .insert([
+        {
+          user_id: userId,
+          title,
+          start_date,
+          end_date: start_date,
+          motivation: trimmedMotivation,
+          check_logs: {},
+        },
+      ])
       .select()
       .single();
 
     if (!error && data) {
       const created: ResolutionItem = {
         ...(data as ResolutionItem),
+        motivation: (data as ResolutionItem).motivation ?? trimmedMotivation,
         check_logs: (data as ResolutionItem).check_logs || {},
       };
       return { item: created, synced: true };
@@ -341,7 +353,8 @@ export async function createResolution(
     user_id: userId || undefined,
     title,
     start_date,
-    end_date,
+    end_date: start_date,
+    motivation: trimmedMotivation,
     check_logs: {},
     created_at: new Date().toISOString(),
   };
@@ -354,21 +367,22 @@ export async function updateResolution(
   id: number,
   title: string,
   start_date: string,
-  end_date: string,
+  motivation: string,
   userId?: string | null
 ): Promise<boolean> {
+  const trimmedMotivation = motivation.trim();
   let synced = false;
   if (userId) {
     const { error } = await supabase
       .from('dday_resolutions')
-      .update({ title, start_date, end_date })
+      .update({ title, start_date, motivation: trimmedMotivation })
       .eq('id', id)
       .eq('user_id', userId);
     synced = !error;
   }
 
   const current = readLocal<ResolutionItem>(getResKey(userId)).map((item) =>
-    item.id === id ? { ...item, title, start_date, end_date } : item
+    item.id === id ? { ...item, title, start_date, motivation: trimmedMotivation } : item
   );
   writeLocal(getResKey(userId), current);
   return synced;
