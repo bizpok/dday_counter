@@ -1059,14 +1059,14 @@ export function MemberProfileSection({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-0.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             <button
               type="button"
               onClick={handleOpenPasswordModal}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="inline-flex min-h-[40px] shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-slate-50 px-2.5 sm:px-3 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-100 whitespace-nowrap cursor-pointer"
             >
-              <KeyRound className="h-3.5 w-3.5 text-blue-600" />
+              <KeyRound className="h-3.5 w-3.5 shrink-0 text-blue-600" />
               <span>비밀번호 변경</span>
             </button>
 
@@ -1077,9 +1077,9 @@ export function MemberProfileSection({
                 setAgreedDelete(false);
                 setOpenDeleteModal(true);
               }}
-              className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-red-600 cursor-pointer"
+              className="inline-flex min-h-[40px] shrink-0 items-center gap-1 rounded-xl px-2 py-2 text-xs font-bold text-slate-400 hover:bg-red-50 hover:text-red-600 whitespace-nowrap cursor-pointer"
             >
-              <UserX className="h-3.5 w-3.5" />
+              <UserX className="h-3.5 w-3.5 shrink-0" />
               <span>회원탈퇴</span>
             </button>
           </div>
@@ -1087,10 +1087,10 @@ export function MemberProfileSection({
           <button
             type="submit"
             disabled={savingProfile}
-            className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+            className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-black text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap cursor-pointer"
           >
-            {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            프로필 저장
+            {savingProfile ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : null}
+            <span>프로필 저장</span>
           </button>
         </div>
       </form>
