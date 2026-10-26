@@ -444,7 +444,7 @@ export default function App() {
             </div>
           </button>
 
-          {activeTab === 'settings' && (
+          {activeTab === 'settings' ? (
             <div className="flex shrink-0 items-center gap-1.5">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-extrabold whitespace-nowrap ${
@@ -470,6 +470,36 @@ export default function App() {
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
               </button>
             </div>
+          ) : (
+            <div className="flex shrink-0 items-center">
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('settings')}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-extrabold text-slate-800 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50 whitespace-nowrap cursor-pointer"
+                >
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={displayName || ''}
+                      className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-blue-500/20"
+                    />
+                  ) : (
+                    <UserIcon className="h-4 w-4 shrink-0 text-blue-600" />
+                  )}
+                  <span className="max-w-[120px] truncate">{displayName}님</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-black text-white shadow-xs hover:bg-blue-700 whitespace-nowrap cursor-pointer"
+                >
+                  <LogIn className="h-3.5 w-3.5 shrink-0" />
+                  <span>로그인</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -483,37 +513,10 @@ export default function App() {
           <div className="flex flex-col gap-5">
             {/* 오늘 날짜 & 전체 요약 히어로 카드 */}
             <section className="rounded-3xl bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-800 p-5 text-white shadow-md">
-              <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1.5 text-xs sm:text-sm font-extrabold text-white">
+              <div className="flex items-center">
+                <div className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap">
                   <span>오늘 · {todayFormatted}</span>
                 </div>
-                {user ? (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('settings')}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-2.5 py-1 text-xs font-extrabold text-white hover:bg-white/25 cursor-pointer"
-                  >
-                    {profile?.avatar_url ? (
-                      <img
-                        src={profile.avatar_url}
-                        alt={displayName || ''}
-                        className="h-4 w-4 rounded-full object-cover"
-                      />
-                    ) : (
-                      <UserIcon className="h-3.5 w-3.5" />
-                    )}
-                    <span className="max-w-[90px] truncate">{displayName}님</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthModal(true)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-blue-800 shadow-xs hover:bg-blue-50 cursor-pointer"
-                  >
-                    <LogIn className="h-3.5 w-3.5" />
-                    <span>로그인</span>
-                  </button>
-                )}
               </div>
 
               <p className="mt-2.5 text-lg sm:text-xl font-black tracking-tight leading-snug break-keep">
